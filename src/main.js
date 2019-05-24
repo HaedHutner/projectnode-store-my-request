@@ -2,24 +2,21 @@ const db = require("./db/database");
 const query = require("./db/query");
 
 // Create Database
-var database = db.createDatabase("newDatabase");
+var database = db.createDatabase("resources/newDatabase");
 
-// Create collection
-database.submit(
-    query.createCollection("newCollection"),
-    (err, success) => {
-        database.submit(
-            query.insertInto("newCollection", {
-                "fieldA": "Hello",
-                "fieldB": {
-                    "fieldBA": 1,
-                    "fieldBB": true
-                }
-            }),
-            (err, id) => {
-
-            }
-        );
+// Select document
+database.submit(query
+    .selectAll()
+    .from("newCollection")
+    .where({
+        "fieldA": "Aschoo",
+        "fieldB": {
+            "fieldBB": true
+        }
+    }),
+    (err, result) => {
+        console.log(err);
+        console.log(JSON.stringify(result));
     }
 );
 

@@ -22,33 +22,15 @@ class Database {
     }
 
     getCollectionFile(collectionName) {
-        return this.rootFolder + "/" + collectionName + ".json";
+        return `${this.rootFolder}/${collectionName}.json`;
     }
 
-    /**
-     * Creates a new collection ( file ) in the database ( root folder ).
-     * If the collection already exists, it will not be overridden, but this will be considered an erroneous call and the result will be false.
-     * @param {query.CreateCollectionQuery} createCollectionQuery Query to create the new collection
-     * @param {Function} callback The callback to execute once this operation is completed.
-     * - Should accept 2 parameters, one for an error, and another for the result ( a boolean ).
-     * - If the operation was successful, the error will be null and the result will be true.
-     * - If the operation was erroneous, the error will be non-null and the result will be false.
-     */
-    create(createCollectionQuery, callback) {
+    createEmptyCollection(collectionName) {
         const collectionFile = this.getCollectionFile(createCollectionQuery.collectionName);
-        fs.exists(collectionFile, (exists) => {
-            if (!exists) {
-                fs.writeFileSync(collectionFile, JSON.stringify({
-                    nextIndex: 0,
-                    documents: []
-                }));
-            } else {
-                callback(new query.QueryException("Collection '" + createCollectionQuery.collectionName + "' already exists."), false);
-                return;
-            }
-
-            callback(null, true);
-        });
+        fs.writeFileSync(collectionFile, JSON.stringify({
+            nextIndex: 0,
+            documents: []
+        }));
     }
 
     /**
@@ -64,9 +46,9 @@ class Database {
         const collectionFile = this.getCollectionFile(collection);
 
         fs.exists(collectionFile, (exists) => {
+
             if (!exists) {
-                callback(new query.QueryException("Collection '" + collection + "' does not exist."), null);
-                return;
+                createEmptyCollection(collection);
             }
 
             try {
@@ -108,7 +90,67 @@ class Database {
      * - If the operation was erroneous, the error will be non-null and the result will be an empty array.
      */
     select(selectQuery, callback) {
-        console.log("Will select: " + JSON.stringify(selectQuery));
+        const collection = selectQuery.collection;
+        const collectionFile = this.getCollectionFile(collection);
+
+        fs.exists(collectionFile, (exists) => {
+            if (!exists) {
+                callback(new query.QueryException(`Collection ${collection} does not exist.`));
+            } else {
+                // Read collection data
+                const data = fs.readFileSync(collectionFile);
+
+                // Parse the json in the file to an object
+                const collectionObject = JSON.parse(data);
+
+                const result = [];
+
+                // Optimize select by index
+                // If an index field is found on the filter, get the document by its index and filter it to make sure it meets other criteria
+                if (selectQuery.filter.index) {
+                    const objectByIndex = collectionObject.documents[selectQuery.filter.index];
+
+                    if (objectByIndex) {
+                        result.push(collectionObject.documents[selectQuery.filter.index]);
+                    }
+
+                    callback(null, result);
+                    return;
+                }
+
+                // Iterate over each document in the collection
+                // Filter each one, and if the document matches the filter, add it to the result array
+                collectionObject.documents.forEach((document) => {
+                    if (this.filterDocument(document, selectQuery.filter)) {
+                        result.push(document);
+                    }
+                });
+
+                callback(null, result);
+            }
+        });
+    }
+
+    filterDocument(document, filter) {
+        var result = true;
+
+        for (const key in filter) {
+            if (!result) {
+                return false;
+            }
+
+            if (document[key]) {
+                if (document[key].constructor == Object && filter[key].constructor == Object) {
+                    result = this.filterDocument(document[key], filter[key]);
+                } else {
+                    result = document[key] === filter[key];
+                }
+            } else {
+                return false;
+            }
+        }
+
+        return result;
     }
 
     /**
