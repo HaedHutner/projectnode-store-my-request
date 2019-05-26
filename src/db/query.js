@@ -1,9 +1,5 @@
-exports.selectAll = () => {
-    return new SelectQueryBuilder("*");
-}
-
-exports.select = (...fields) => {
-    return new SelectQueryBuilder(fields);
+exports.selectFrom = (collection) => {
+    return new SelectQueryBuilder(collection);
 }
 
 exports.insertInto = (collection, object) => {
@@ -40,14 +36,9 @@ class CreateCollectionQuery {
 
 class SelectQuery {
 
-    constructor(fieldsToSelect, collection, filter) {
-        this._fieldsToSelect = fieldsToSelect;
+    constructor(collection, filter) {
         this._collection = collection;
         this._filter = filter;
-    }
-
-    get fieldsToSelect() {
-        return this._fieldsToSelect;
     }
 
     get collection() {
@@ -123,22 +114,17 @@ class DeleteQuery {
 
 class SelectQueryBuilder {
 
-    constructor(...fieldsToSelect) {
-        this._fieldsToSelect = fieldsToSelect;
-    }
-
-    from(collection) {
+    constructor(collection) {
         this._collection = collection;
-        return this;
     }
 
     where(filter) {
         this._filter = filter;
-        return new SelectQuery(this._fieldsToSelect, this._collection, this._filter);
+        return new SelectQuery(this._collection, this._filter);
     }
 
     build() {
-        return new SelectQuery(this._fieldsToSelect, this._collection, this._filter);
+        return new SelectQuery(this._collection, this._filter);
     }
 
 }

@@ -6,8 +6,7 @@ var database = db.createDatabase("resources/newDatabase");
 
 // Select document
 database.submit(query
-    .selectAll()
-    .from("newCollection")
+    .selectFrom("newCollection")
     .where({
         "fieldA": "Aschoo",
         "fieldB": {

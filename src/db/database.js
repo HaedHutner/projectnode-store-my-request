@@ -146,7 +146,7 @@ class Database {
                     result = document[key] === filter[key];
                 }
             } else {
-                return false;
+                result = false;
             }
         }
 
