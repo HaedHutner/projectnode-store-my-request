@@ -26,7 +26,7 @@ class Database {
     }
 
     createEmptyCollection(collectionName) {
-        const collectionFile = this.getCollectionFile(createCollectionQuery.collectionName);
+        const collectionFile = this.getCollectionFile(collectionName);
         fs.writeFileSync(collectionFile, JSON.stringify({
             nextIndex: 0,
             documents: []
@@ -48,7 +48,7 @@ class Database {
         fs.exists(collectionFile, (exists) => {
 
             if (!exists) {
-                createEmptyCollection(collection);
+                this.createEmptyCollection(collection);
             }
 
             try {
@@ -162,7 +162,57 @@ class Database {
      * - If the operation was erroneous, the error will be non-null and the result will be -1.
      */
     update(updateQuery, callback) {
-        console.log("Will update: " + JSON.stringify(updateQuery));
+        const collection = updateQuery.collection;
+        const collectionFile = this.getCollectionFile(collection);
+        fs.exists(collectionFile, (exists) => {
+            if (!exists) {
+                callback(new query.QueryException(`Collection ${collection} does not exist.`));
+            } else {
+                // Read collection data
+                const data = fs.readFileSync(collectionFile);
+
+                // Parse the json in the file to an object
+                const collectionObject = JSON.parse(data);
+
+                const result = [];
+
+                // Optimize select by index
+                // If an index field is found on the filter, get the document by its index and filter it to make sure it meets other criteria
+                if (updateQuery.filter.index) {
+                    const objectByIndex = collectionObject.documents[updateQuery.filter.index];
+
+                    if (objectByIndex) {
+                        for (var key in updateQuery.value) {
+                            document[key] = updateQuery.value[key];
+                        }
+                        
+                        affectedDocuments++;
+                    }
+
+                    callback(null, 1);
+                    return;
+                }
+
+                var affectedDocuments = 0;
+
+                // Iterate over each document in the collection
+                // Filter each one, and if the document matches the filter, update it
+                collectionObject.documents.forEach((document) => {
+                    if (this.filterDocument(document, updateQuery.filter)) {
+                        for (var key in updateQuery.value) {
+                            document[key] = updateQuery.value[key];
+                        }
+                        
+                        affectedDocuments++;
+                    }
+                });
+
+                // Use the same "thread" to also write the changes to the collection
+                fs.writeFileSync(collectionFile, JSON.stringify(collectionObject));
+
+                callback(null, affectedDocuments);
+            }
+        });
     }
 
     /**
@@ -174,7 +224,28 @@ class Database {
      * - If the operation was erroneous, the error will be non-null and the result will be -1.
      */
     delete(deleteQuery, callback) {
-        console.log("Will delete: " + JSON.stringify(deleteQuery));
+        const collection = deleteQuery.collection;
+        const collectionFile = this.getCollectionFile(collection);
+        fs.exists(collectionFile, (exists) => {
+            if (!exists) {
+                callback(new query.QueryException(`Collection ${collection} does not exist.`));
+            } else {
+                // Read collection data
+                const data = fs.readFileSync(collectionFile);
+
+                // Parse the json in the file to an object
+                const collectionObject = JSON.parse(data);
+
+                // Iterate over each document in the collection
+                // Filter each one, and if the document matches does not match filter, remove it
+                collectionObject.documents = collectionObject.documents.filter(obj => !this.filterDocument(obj, deleteQuery.filter));
+
+                // Use the same "thread" to also write the changes to the collection
+                fs.writeFileSync(collectionFile, JSON.stringify(collectionObject));
+
+                callback(null, 0);
+            }
+        });
     }
 
     /**

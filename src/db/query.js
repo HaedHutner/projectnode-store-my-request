@@ -6,8 +6,8 @@ exports.insertInto = (collection, object) => {
     return new InsertQuery(collection, object);
 }
 
-exports.update = (...fields) => {
-    return new UpdateQueryBuilder(fields);
+exports.update = (collection) => {
+    return new UpdateQueryBuilder(collection);
 }
 
 exports.deleteAllFrom = (collection) => {
@@ -70,27 +70,22 @@ class InsertQuery {
 
 class UpdateQuery {
 
-    constructor(fieldsToUpdate, collection, values, filter) {
-        this._fieldsToUpdate = fieldsToUpdate;
+    constructor(collection, filter, value) {
         this._collection = collection;
-        this._values = values;
         this._filter = filter;
-    }
-
-    get fieldsToUpdate() {
-        return this._fieldsToUpdate;
+        this._value = value;
     }
 
     get collection() {
         return this._collection;
     }
 
-    get values() {
-        return this._values;
-    }
-
     get filter() {
         return this._filter;
+    }
+
+    get value() {
+        return this._value;
     }
 
 }
@@ -131,27 +126,22 @@ class SelectQueryBuilder {
 
 class UpdateQueryBuilder {
 
-    constructor(...fieldsToUpdate) {
-        this._fieldsToUpdate = fieldsToUpdate;
-    }
-
-    in(collection) {
+    constructor(collection) {
         this._collection = collection;
-        return this;
     }
 
-    values(values) {
-        this._values = values;
+    to(value) {
+        this._value = value;
         return this;
     }
 
     where(filter) {
         this._filter = filter;
-        return new UpdateQuery(this._fieldsToUpdate, this._collection, this._values, this._filter);
+        return new UpdateQuery(this._collection, this._filter, this._value);
     }
 
     build() {
-        return new UpdateQuery(this._fieldsToUpdate, this._collection, this._values, this._filter);
+        return new UpdateQuery(this._collection, this._filter, this._value);
     }
 
 }
